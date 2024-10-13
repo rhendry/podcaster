@@ -15,7 +15,7 @@ class LLMClient(ABC):
         pass
 
 class OpenAILLMClient(LLMClient):
-    def __init__(self, api_key: str, model: str = 'gpt-3.5-turbo'):
+    def __init__(self, api_key: str, model: str = 'gpt-4o'):
         self.api_key = api_key
         self.model = model
         self.client = AsyncClient(api_key=self.api_key)
