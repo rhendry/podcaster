@@ -9,9 +9,14 @@ from podcaster.prompt_renderer import JinjaPromptRenderer
 from podcaster.source_repository import (
     TextFileSourceRepository,
 )
+from podcaster.speech_to_audio_converter import DefaultSpeechToAudioConverter
 from podcaster.transcript_generator import LLMTranscriptGenerator
 from podcaster.llm_client import OpenAILLMClient
 from podcaster.transcript_repository import LocalTranscriptRepository
+from podcaster.transcript_to_audio_converter import DefaultTranscriptToAudioConverter
+from podcaster.tts_client import OpenAITTSClient
+from pydub import AudioSegment
+from podcaster.audio_stitcher import LibrosaAudioClipStitcher, PydubAudioClipStitcher, WaveAudioClipStitcher
 
 dotenv.load_dotenv()
 
@@ -23,6 +28,8 @@ async def main_async():
     )
 
     console = Console()
+    # Clear the terminal
+    console.clear()
 
     console.print(r"""
 [bold blue] ________  ________  ________  ________  ________  ________  _________  _______   ________     [/bold blue]
@@ -69,7 +76,11 @@ async def main_async():
         inquirer.List(
             'action',
             message='What would you like to do?',
-            choices=['Generate a transcript', 'Convert transcript to audio'],
+            choices=[
+                'Generate a transcript',
+                'Convert transcript to audio',
+                'Stitch audio clips into podcast'
+            ],
         )
     ]
     answers = inquirer.prompt(questions)
@@ -93,9 +104,79 @@ async def main_async():
         logging.info(f"Available transcripts: {transcripts}")
 
     elif answers['action'] == 'Convert transcript to audio':
-        # Stub handler for converting transcripts to audio
-        console.print('[bold yellow]This feature is under development.[/bold yellow]')
-    
+        console.print('[bold green]Fetching available transcripts...[/bold green]')
+        transcripts = await transcript_repository.list_transcripts_async()
+
+        if not transcripts:
+            console.print('[bold red]No transcripts found. Please generate a transcript first.[/bold red]')
+            return
+
+        # Prompt the user to select a transcript
+        transcript_question = [
+            inquirer.List(
+                'transcript',
+                message='Select a transcript to convert',
+                choices=transcripts,
+            )
+        ]
+        transcript_answer = inquirer.prompt(transcript_question)
+
+        if not transcript_answer:
+            console.print('[bold red]No transcript selected. Exiting...[/bold red]')
+            return
+
+        selected_transcript_file = transcript_answer['transcript']
+
+        # Load the selected transcript
+        transcript = await transcript_repository.read_transcript_async(selected_transcript_file)
+
+        # Convert the selected transcript to audio
+        console.print(f"[bold green]Converting transcript '{selected_transcript_file}' to audio...[/bold green]")
+        transcript_to_audio_converter = DefaultTranscriptToAudioConverter(
+            speech_to_audio_converter=DefaultSpeechToAudioConverter(
+                tts_client=OpenAITTSClient(api_key=os.getenv('OPENAI_API_KEY') or '')
+            )
+        )
+        await transcript_to_audio_converter.convert_transcript_to_audio_async(transcript)
+        console.print('[bold green]Audio conversion completed.[/bold green]')
+
+    elif answers['action'] == 'Stitch audio clips into podcast':
+        console.print('[bold green]Fetching available clip directories...[/bold green]')
+        clip_dirs = [
+            d for d in os.listdir('output/clips/')
+            if os.path.isdir(os.path.join('output/clips/', d))
+        ]
+
+        if not clip_dirs:
+            console.print('[bold red]No clip directories found. Please convert a transcript to audio first.[/bold red]')
+            return
+
+        # Prompt the user to select a clip directory
+        clip_dir_question = [
+            inquirer.List(
+                'clip_dir',
+                message='Select a clip directory to stitch',
+                choices=clip_dirs,
+            )
+        ]
+        clip_dir_answer = inquirer.prompt(clip_dir_question)
+
+        if not clip_dir_answer:
+            console.print('[bold red]No clip directory selected. Exiting...[/bold red]')
+            return
+
+        selected_clip_dir = clip_dir_answer['clip_dir']
+        clip_dir_path = os.path.join('output/clips/', selected_clip_dir)
+
+        # Stitch the audio clips into a podcast
+        console.print(f"[bold green]Stitching audio clips from '{selected_clip_dir}'...[/bold green]")
+        audio_stitcher = LibrosaAudioClipStitcher()
+        await audio_stitcher.stitch_audio_clips_async(
+            clip_dir_path,
+            'output/podcasts',
+            f'{selected_clip_dir}_podcast.wav'
+        )
+        console.print('[bold green]Audio stitching completed.[/bold green]')
 
 if __name__ == "__main__":
     asyncio.run(main_async())

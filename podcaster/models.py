@@ -1,5 +1,20 @@
+from enum import Enum
 from typing import Literal, Union
 from pydantic import BaseModel, Field
+
+class Voice(Enum):
+    ALLOY = "alloy"
+    ECHO = "echo"
+    FABLE = "fable"
+    ONYX = "onyx"
+    NOVA = "nova"
+    SHIMMER = "shimmer"
+
+
+class Host(BaseModel):
+    name: str = Field(description="The name of the host.")
+    voice: Voice = Field(description="The voice of the host.")
+    id: str = Field(description="The id of the host (e.g. first name).")
 
 class TranscriptItem(BaseModel):
     type: str = Field(description="The type of the item in the transcript.")
@@ -7,7 +22,7 @@ class TranscriptItem(BaseModel):
 
 class SpeechTranscriptItem(TranscriptItem):
     type: Literal["speech"] = Field(description="The type of the item in the transcript.")
-    speakers: str = Field(description="The speakers of the item, separated by commas.")
+    speaker_id: str = Field(description="The id of the speaker of the item. Must be one of the ids of the hosts.")
     content: str = Field(description="The content of the item.")
 
 class MusicThemeTranscriptItem(TranscriptItem):
@@ -18,6 +33,7 @@ TranscriptItemType = Union[SpeechTranscriptItem, MusicThemeTranscriptItem]
 
 class Transcript(BaseModel):
     title: str = Field(description="The title of the podcast.")
+    hosts: list[Host] = Field(description="The hosts of the podcast.")
     items: list[TranscriptItemType] = Field(description="The items in the transcript.")
 
 class Source(BaseModel):
