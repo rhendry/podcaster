@@ -1,0 +1,2 @@
+Name: John Smith
+Bio: An environmental advocate and expert in renewable energy.

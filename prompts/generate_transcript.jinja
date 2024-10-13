@@ -1,0 +1,23 @@
+Instructions:
+Generate a detailed and engaging podcast transcript based on the information provided below. The transcript should:
+
+- Incorporate the hosts' personalities and speaking styles.
+- Include accurate information from the sources.
+- Follow the structure outlined.
+- Be suitable for the podcast's target audience and format.
+- Be approximately 30 minutes in length when read aloud.
+
+Ensure the transcript flows naturally and maintains the listeners' interest throughout.
+
+Hosts:
+{% for host in hosts %}
+- {{ host }}
+{% endfor %}
+
+Outline:
+{{ outline }}
+
+Sources:
+{% for source in sources %}
+- {{ source.text }}
+{% endfor %}
